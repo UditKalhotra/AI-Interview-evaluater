@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.db import connect_to_mongo, close_mongo_connection, ping_database, MONGO_DB_NAME
-from app.routers import questions
+from app.routers import questions, interview
 
 
 @asynccontextmanager
@@ -33,6 +33,7 @@ app.add_middleware(
 
 
 app.include_router(questions.router)
+app.include_router(interview.router)
 
 
 @app.get("/health")
