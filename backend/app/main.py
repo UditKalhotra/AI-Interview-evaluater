@@ -32,6 +32,15 @@ app.add_middleware(
 )
 
 
+import os
+from fastapi.staticfiles import StaticFiles
+
+# Ensure uploads directory exists
+UPLOADS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "uploads")
+os.makedirs(UPLOADS_DIR, exist_ok=True)
+
+app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
+
 app.include_router(questions.router)
 app.include_router(interview.router)
 
@@ -46,3 +55,8 @@ async def health():
             "name": MONGO_DB_NAME,
         },
     }
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)

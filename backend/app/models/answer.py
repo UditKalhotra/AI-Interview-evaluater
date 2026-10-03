@@ -13,5 +13,6 @@ class Answer(BaseModel):
     question_id: str
     audio_url: Optional[str] = None
     transcript: Optional[str] = None
+    words: Optional[list] = None
     response_time_seconds: Optional[float] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
