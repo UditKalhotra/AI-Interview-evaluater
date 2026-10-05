@@ -11,7 +11,7 @@ export default function QuestionCard({
   sessionId,
   questionData,
   answeredCount = 0,
-  totalQuestions = 5,
+  totalQuestions = 0,
   onAnswerSubmitted,
 }) {
   const [questionDetails, setQuestionDetails] = useState(questionData || null);
@@ -67,11 +67,9 @@ export default function QuestionCard({
     setRepeatNotice(false);
     prepStartTimeRef.current = Date.now();
 
-    // Clear existing timers
     if (prepTimerRef.current) clearInterval(prepTimerRef.current);
     if (answerTimerRef.current) clearInterval(answerTimerRef.current);
 
-    // Start 60-second Preparation Reading Timer
     prepTimerRef.current = setInterval(() => {
       setPrepTimeLeft((prev) => {
         if (prev <= 1) {
@@ -89,25 +87,21 @@ export default function QuestionCard({
     };
   }, [questionId]);
 
-  // Handle "Repeat Question" button click
   const handleRepeatQuestion = () => {
     setRepeatCount((prev) => prev + 1);
     setRepeatNotice(true);
     setTimeout(() => setRepeatNotice(false), 2500);
 
-    // If currently in prep mode, reset prep timer to give full 60 seconds again
     if (phase === "prep") {
       setPrepTimeLeft(PREP_TIME_DEFAULT);
     }
   };
 
-  // Move from prep -> ready or start recording directly
   const handleReadyToAnswer = () => {
     if (prepTimerRef.current) clearInterval(prepTimerRef.current);
     setPhase("ready");
   };
 
-  // Start recording answer
   const startRecording = async () => {
     try {
       setErrorMessage(null);
@@ -138,7 +132,6 @@ export default function QuestionCard({
       setPhase("recording");
       setAnswerTimeLeft(ANSWER_TIME_DEFAULT);
 
-      // Start 60-second Speaking Answer Timer
       answerTimerRef.current = setInterval(() => {
         setAnswerTimeLeft((prev) => {
           if (prev <= 1) {
@@ -158,7 +151,6 @@ export default function QuestionCard({
     }
   };
 
-  // Stop recording manually
   const stopRecording = () => {
     if (answerTimerRef.current) clearInterval(answerTimerRef.current);
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
@@ -167,7 +159,6 @@ export default function QuestionCard({
     }
   };
 
-  // Upload recording to backend
   const uploadAnswer = async (audioBlob, responseLatency) => {
     setPhase("submitting");
     try {
@@ -237,8 +228,7 @@ export default function QuestionCard({
       {/* Main Question Display Box */}
       {loadingQuestion ? (
         <div style={styles.loadingBox}>
-          <div style={styles.spinner} />
-          <p style={styles.loadingText}>Fetching question text...</p>
+          <p style={styles.loadingText}>Loading question statement...</p>
         </div>
       ) : (
         <div style={{ ...styles.questionBox, ...(repeatNotice ? styles.questionBoxHighlight : {}) }}>
@@ -253,7 +243,7 @@ export default function QuestionCard({
       {/* Error Message */}
       {errorMessage && (
         <div style={styles.errorBox}>
-          ⚠️ {errorMessage}
+          {errorMessage}
         </div>
       )}
 
@@ -267,26 +257,25 @@ export default function QuestionCard({
               <span style={styles.timerValue}>0:{prepTimeLeft < 10 ? `0${prepTimeLeft}` : prepTimeLeft}</span>
             </div>
 
-            {/* Preparation Progress Bar */}
             <div style={styles.progressTrack}>
               <div
                 style={{
                   ...styles.progressBar,
                   width: `${(prepTimeLeft / PREP_TIME_DEFAULT) * 100}%`,
-                  background: "#2563eb",
+                  background: "#315EA8",
                 }}
               />
             </div>
             <p style={styles.prepSubtext}>
-              Take up to 1 minute to read and structure your spoken answer.
+              Take up to 1 minute to read and formulate your spoken response.
             </p>
 
             <div style={styles.actionRow}>
               <button style={styles.buttonSecondary} onClick={handleRepeatQuestion}>
-                🔄 Repeat Question
+                Repeat Question
               </button>
               <button style={styles.buttonPrimary} onClick={handleReadyToAnswer}>
-                I'm Ready to Answer &rarr;
+                Ready to Answer
               </button>
             </div>
           </div>
@@ -296,14 +285,14 @@ export default function QuestionCard({
         {phase === "ready" && (
           <div style={styles.readyContainer}>
             <div style={styles.readyBanner}>
-              <span>Preparation complete. Click below to record your response.</span>
+              Preparation time finished. Click below when ready to record your verbal response.
             </div>
             <div style={styles.actionRow}>
               <button style={styles.buttonSecondary} onClick={handleRepeatQuestion}>
-                🔄 Repeat Question
+                Repeat Question
               </button>
               <button style={styles.buttonRecord} onClick={startRecording}>
-                🎙️ Start Answering (Record Voice)
+                Start Recording
               </button>
             </div>
           </div>
@@ -315,10 +304,10 @@ export default function QuestionCard({
             <div style={styles.recordingHeader}>
               <div style={styles.recordingLiveBadge}>
                 <span style={styles.pulseDot} />
-                <span>Recording Spoken Answer</span>
+                <span>Recording Spoken Response</span>
               </div>
               <span style={styles.recordingTimer}>
-                0:{answerTimeLeft < 10 ? `0${answerTimeLeft}` : answerTimeLeft} remaining
+                0:{answerTimeLeft < 10 ? `0${answerTimeLeft}` : answerTimeLeft}
               </span>
             </div>
 
@@ -327,17 +316,17 @@ export default function QuestionCard({
                 style={{
                   ...styles.progressBar,
                   width: `${(answerTimeLeft / ANSWER_TIME_DEFAULT) * 100}%`,
-                  background: "#ef4444",
+                  background: "#B55353",
                 }}
               />
             </div>
 
             <div style={styles.actionRow}>
               <button style={styles.buttonSecondary} onClick={handleRepeatQuestion}>
-                🔄 Repeat Question
+                Repeat Question
               </button>
               <button style={styles.buttonStop} onClick={stopRecording}>
-                ⏹️ Finish & Submit Response
+                Submit Response
               </button>
             </div>
           </div>
@@ -346,12 +335,11 @@ export default function QuestionCard({
         {/* Phase 4: Submitting */}
         {phase === "submitting" && (
           <div style={styles.submittingBox}>
-            <div style={styles.spinner} />
-            <div>
-              <div style={{ fontWeight: "600", color: "#f8fafc" }}>Processing Spoken Answer...</div>
-              <div style={{ fontSize: "0.85rem", color: "#94a3b8" }}>
-                Transcribing audio, evaluating technical accuracy & speech metrics...
-              </div>
+            <div style={{ fontWeight: "600", color: "#111827", fontSize: "0.9375rem" }}>
+              Processing Spoken Response...
+            </div>
+            <div style={{ fontSize: "0.8125rem", color: "#667085" }}>
+              Transcribing audio and calculating evaluation metrics.
             </div>
           </div>
         )}
@@ -362,14 +350,13 @@ export default function QuestionCard({
 
 const styles = {
   card: {
-    background: "#151d2a",
-    borderRadius: "16px",
-    border: "1px solid #233044",
-    padding: "2rem",
-    boxShadow: "0 10px 30px rgba(0, 0, 0, 0.2)",
+    background: "#FFFFFF",
+    borderRadius: "8px",
+    border: "1px solid #E2E4E7",
+    padding: "1.75rem",
     display: "flex",
     flexDirection: "column",
-    gap: "1.5rem",
+    gap: "1.25rem",
   },
   cardHeader: {
     display: "flex",
@@ -381,120 +368,114 @@ const styles = {
   metaBadges: {
     display: "flex",
     alignItems: "center",
-    gap: "0.6rem",
+    gap: "0.5rem",
     flexWrap: "wrap",
   },
   questionIndexBadge: {
-    background: "#233044",
-    color: "#f8fafc",
-    fontSize: "0.8rem",
+    background: "#F1F2F0",
+    border: "1px solid #E2E4E7",
+    color: "#111827",
+    fontSize: "0.75rem",
     fontWeight: "700",
-    padding: "0.3rem 0.75rem",
-    borderRadius: "6px",
-    letterSpacing: "0.02em",
+    padding: "0.25rem 0.6rem",
+    borderRadius: "4px",
   },
   topicBadge: {
-    background: "rgba(37, 99, 235, 0.12)",
-    border: "1px solid rgba(37, 99, 235, 0.3)",
-    color: "#60a5fa",
-    fontSize: "0.8rem",
+    background: "#F1F2F0",
+    border: "1px solid #E2E4E7",
+    color: "#667085",
+    fontSize: "0.75rem",
     fontWeight: "600",
-    padding: "0.3rem 0.75rem",
-    borderRadius: "6px",
+    padding: "0.25rem 0.6rem",
+    borderRadius: "4px",
   },
   difficultyBadge: {
-    fontSize: "0.8rem",
+    fontSize: "0.75rem",
     fontWeight: "600",
-    padding: "0.3rem 0.75rem",
-    borderRadius: "6px",
+    padding: "0.25rem 0.6rem",
+    borderRadius: "4px",
+    border: "1px solid",
   },
   diffEasy: {
-    background: "rgba(16, 185, 129, 0.12)",
-    color: "#10b981",
-    border: "1px solid rgba(16, 185, 129, 0.3)",
+    background: "#EAF3ED",
+    color: "#3F7D5A",
+    borderColor: "#C8E2D2",
   },
   diffMedium: {
-    background: "rgba(245, 158, 11, 0.12)",
-    color: "#f59e0b",
-    border: "1px solid rgba(245, 158, 11, 0.3)",
+    background: "#F8F3E9",
+    color: "#A87832",
+    borderColor: "#E8D7BE",
   },
   diffHard: {
-    background: "rgba(239, 68, 68, 0.12)",
-    color: "#ef4444",
-    border: "1px solid rgba(239, 68, 68, 0.3)",
+    background: "#F9EBEB",
+    color: "#B55353",
+    borderColor: "#ECC6C6",
   },
   repeatBadge: {
-    fontSize: "0.775rem",
-    color: "#94a3b8",
-    background: "#0f1724",
-    border: "1px solid #233044",
-    padding: "0.25rem 0.6rem",
-    borderRadius: "6px",
+    fontSize: "0.75rem",
+    color: "#667085",
+    background: "#F1F2F0",
+    border: "1px solid #E2E4E7",
+    padding: "0.2rem 0.5rem",
+    borderRadius: "4px",
   },
   loadingBox: {
-    padding: "3rem 1.5rem",
+    padding: "2.5rem 1.5rem",
     textAlign: "center",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: "1rem",
   },
   loadingText: {
-    color: "#94a3b8",
-    fontSize: "0.95rem",
+    color: "#667085",
+    fontSize: "0.9375rem",
   },
   questionBox: {
-    background: "#0f1724",
-    border: "1px solid #233044",
-    borderRadius: "12px",
-    padding: "1.75rem",
-    transition: "all 0.3s ease",
+    background: "#F7F7F5",
+    border: "1px solid #E2E4E7",
+    borderRadius: "6px",
+    padding: "1.5rem",
   },
   questionBoxHighlight: {
-    borderColor: "#3b82f6",
-    boxShadow: "0 0 16px rgba(59, 130, 246, 0.15)",
+    borderColor: "#315EA8",
   },
   questionLabelRow: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: "0.75rem",
+    marginBottom: "0.5rem",
   },
   questionLabel: {
     fontSize: "0.75rem",
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: "0.05em",
-    color: "#64748b",
+    color: "#667085",
   },
   noticeTag: {
     fontSize: "0.75rem",
-    color: "#3b82f6",
+    color: "#315EA8",
     fontWeight: "600",
   },
   questionText: {
-    fontSize: "1.35rem",
-    fontWeight: "600",
-    color: "#f8fafc",
-    lineHeight: "1.5",
-    letterSpacing: "-0.01em",
+    fontSize: "1.25rem",
+    fontWeight: "700",
+    color: "#111827",
+    lineHeight: "1.4",
   },
   errorBox: {
-    padding: "0.85rem 1.25rem",
-    background: "rgba(239, 68, 68, 0.12)",
-    border: "1px solid rgba(239, 68, 68, 0.3)",
-    color: "#fca5a5",
-    borderRadius: "10px",
-    fontSize: "0.9rem",
+    padding: "0.75rem 1rem",
+    background: "#F9EBEB",
+    border: "1px solid #ECC6C6",
+    color: "#B55353",
+    borderRadius: "6px",
+    fontSize: "0.875rem",
   },
   controlsSection: {
-    borderTop: "1px solid #233044",
-    paddingTop: "1.5rem",
+    borderTop: "1px solid #E2E4E7",
+    paddingTop: "1.25rem",
   },
   prepContainer: {
     display: "flex",
     flexDirection: "column",
-    gap: "1rem",
+    gap: "0.85rem",
   },
   timerHeader: {
     display: "flex",
@@ -502,19 +483,19 @@ const styles = {
     alignItems: "center",
   },
   timerTitle: {
-    color: "#94a3b8",
-    fontSize: "0.9rem",
+    color: "#667085",
+    fontSize: "0.875rem",
     fontWeight: "600",
   },
   timerValue: {
-    color: "#3b82f6",
-    fontSize: "1.25rem",
+    color: "#315EA8",
+    fontSize: "1.15rem",
     fontWeight: "700",
     fontVariantNumeric: "tabular-nums",
   },
   progressTrack: {
     height: "6px",
-    background: "#0f1724",
+    background: "#E2E4E7",
     borderRadius: "3px",
     overflow: "hidden",
   },
@@ -524,27 +505,27 @@ const styles = {
     transition: "width 1s linear",
   },
   prepSubtext: {
-    fontSize: "0.85rem",
-    color: "#64748b",
+    fontSize: "0.8125rem",
+    color: "#667085",
   },
   readyContainer: {
     display: "flex",
     flexDirection: "column",
-    gap: "1.25rem",
+    gap: "1rem",
   },
   readyBanner: {
-    padding: "0.85rem 1.25rem",
-    background: "rgba(16, 185, 129, 0.1)",
-    border: "1px solid rgba(16, 185, 129, 0.25)",
-    color: "#10b981",
-    borderRadius: "10px",
-    fontSize: "0.9rem",
+    padding: "0.75rem 1rem",
+    background: "#EAF3ED",
+    border: "1px solid #C8E2D2",
+    color: "#3F7D5A",
+    borderRadius: "6px",
+    fontSize: "0.875rem",
     fontWeight: "600",
   },
   recordingContainer: {
     display: "flex",
     flexDirection: "column",
-    gap: "1.25rem",
+    gap: "1rem",
   },
   recordingHeader: {
     display: "flex",
@@ -554,89 +535,76 @@ const styles = {
   recordingLiveBadge: {
     display: "flex",
     alignItems: "center",
-    gap: "0.5rem",
-    color: "#ef4444",
+    gap: "0.4rem",
+    color: "#B55353",
     fontWeight: "700",
-    fontSize: "0.95rem",
+    fontSize: "0.875rem",
   },
   pulseDot: {
-    width: "10px",
-    height: "10px",
+    width: "8px",
+    height: "8px",
     borderRadius: "50%",
-    background: "#ef4444",
-    boxShadow: "0 0 8px #ef4444",
+    background: "#B55353",
   },
   recordingTimer: {
-    color: "#f8fafc",
+    color: "#111827",
     fontWeight: "700",
-    fontSize: "1.1rem",
+    fontSize: "1rem",
   },
   actionRow: {
     display: "flex",
-    gap: "1rem",
+    gap: "0.85rem",
     justifyContent: "flex-end",
     flexWrap: "wrap",
-    marginTop: "0.5rem",
+    marginTop: "0.25rem",
   },
   buttonPrimary: {
-    padding: "0.75rem 1.5rem",
-    borderRadius: "10px",
-    background: "#2563eb",
+    padding: "0.65rem 1.35rem",
+    borderRadius: "6px",
+    background: "#315EA8",
     color: "#ffffff",
     border: "none",
     fontWeight: "600",
-    fontSize: "0.95rem",
+    fontSize: "0.875rem",
     cursor: "pointer",
-    transition: "background 0.2s ease",
   },
   buttonSecondary: {
-    padding: "0.75rem 1.25rem",
-    borderRadius: "10px",
-    background: "#0f1724",
-    border: "1px solid #233044",
-    color: "#cbd5e1",
+    padding: "0.65rem 1.15rem",
+    borderRadius: "6px",
+    background: "#FFFFFF",
+    border: "1px solid #E2E4E7",
+    color: "#111827",
     fontWeight: "600",
-    fontSize: "0.95rem",
+    fontSize: "0.875rem",
     cursor: "pointer",
-    transition: "all 0.2s ease",
   },
   buttonRecord: {
-    padding: "0.75rem 1.75rem",
-    borderRadius: "10px",
-    background: "#10b981",
+    padding: "0.65rem 1.5rem",
+    borderRadius: "6px",
+    background: "#3F7D5A",
     color: "#ffffff",
     border: "none",
     fontWeight: "700",
-    fontSize: "0.95rem",
+    fontSize: "0.875rem",
     cursor: "pointer",
-    boxShadow: "0 4px 14px rgba(16, 185, 129, 0.25)",
   },
   buttonStop: {
-    padding: "0.75rem 1.75rem",
-    borderRadius: "10px",
-    background: "#ef4444",
+    padding: "0.65rem 1.5rem",
+    borderRadius: "6px",
+    background: "#B55353",
     color: "#ffffff",
     border: "none",
     fontWeight: "700",
-    fontSize: "0.95rem",
+    fontSize: "0.875rem",
     cursor: "pointer",
-    boxShadow: "0 4px 14px rgba(239, 68, 68, 0.25)",
   },
   submittingBox: {
     display: "flex",
-    alignItems: "center",
-    gap: "1rem",
-    padding: "1.25rem",
-    background: "#0f1724",
-    borderRadius: "10px",
-    border: "1px solid #233044",
-  },
-  spinner: {
-    width: "24px",
-    height: "24px",
-    border: "3px solid #233044",
-    borderTopColor: "#3b82f6",
-    borderRadius: "50%",
-    animation: "spin 1s linear infinite",
+    flexDirection: "column",
+    gap: "0.25rem",
+    padding: "1rem 1.25rem",
+    background: "#F1F2F0",
+    borderRadius: "6px",
+    border: "1px solid #E2E4E7",
   },
 };

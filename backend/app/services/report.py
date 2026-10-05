@@ -5,7 +5,6 @@ Aggregates all answers and score_results documents for a completed session into:
 - overall technical score (avg correctness_score)
 - overall communication score (avg behavior_score)
 - overall combined score
-- final theta / estimated ability and standard error
 - per-question breakdown table with question topic, text, difficulty, and missed rubric points
 - per-topic breakdown and chart-ready score distributions
 - auto-generated 2-3 strengths and 2-3 weaknesses
@@ -23,118 +22,83 @@ logger = logging.getLogger(__name__)
 
 
 def _generate_strengths_and_weaknesses(
-    topic_breakdown: List[Dict[str, Any]],
     per_question_breakdown: List[Dict[str, Any]],
     overall_technical: float,
     overall_communication: float,
-) -> Dict[str, List[str]]:
+) -> Dict[str, Any]:
     """
-    Auto-generate 2-3 strengths and 2-3 weaknesses based on candidate's performance
-    across topics, correctness scores, missed rubric points, and communication features.
+    Auto-generate deterministic, data-grounded summary metrics, strengths,
+    improvement areas, and next practice steps based on candidate's exact scores.
     """
+    total_q = len(per_question_breakdown)
+    strong_qs = []
+    partial_qs = []
+    weak_qs = []
+
+    for idx, q in enumerate(per_question_breakdown):
+        q_label = f"Q{idx + 1}"
+        score = q.get("correctness_score")
+        score_val = float(score) if score is not None else 0.0
+        if score_val >= 70.0:
+            strong_qs.append(q_label)
+        elif score_val >= 40.0:
+            partial_qs.append(q_label)
+        else:
+            weak_qs.append(q_label)
+
     strengths: List[str] = []
     weaknesses: List[str] = []
+    next_steps: List[str] = []
 
-    # 1. Topic-level analysis
-    if topic_breakdown:
-        sorted_by_tech = sorted(topic_breakdown, key=lambda x: x["avg_correctness_score"], reverse=True)
-        best_topic = sorted_by_tech[0]
-        worst_topic = sorted_by_tech[-1]
+    # 1. Deterministic Strengths
+    if strong_qs:
+        strengths.append(f"{len(strong_qs)} of {total_q} responses demonstrated strong technical performance.")
+        if len(strong_qs) <= 4:
+            strengths.append(f"Your strongest responses were {', '.join(strong_qs)}.")
 
-        if best_topic["avg_correctness_score"] >= 70.0:
-            strengths.append(
-                f"Strong technical grasp of {best_topic['topic']} with an average score of {best_topic['avg_correctness_score']:.1f}%."
-            )
-        else:
-            strengths.append(
-                f"Demonstrated fundamental awareness in {best_topic['topic']} ({best_topic['avg_correctness_score']:.1f}% score)."
-            )
+    if overall_communication >= 70.0:
+        strengths.append(f"Communication delivery was strong at {overall_communication:.1f}%.")
 
-        if worst_topic["avg_correctness_score"] < 75.0:
-            weaknesses.append(
-                f"Opportunity to deepen knowledge in {worst_topic['topic']}, averaging {worst_topic['avg_correctness_score']:.1f}% correctness."
-            )
-        else:
-            weaknesses.append(
-                f"Minor gaps identified in edge cases for {worst_topic['topic']} ({worst_topic['avg_correctness_score']:.1f}% correctness)."
-            )
+    if not strengths:
+        strengths.append(f"Completed all {total_q} assigned technical interview questions.")
 
-    # 2. Rubric / Technical accuracy analysis
-    all_missed_rubric: List[str] = []
-    for q in per_question_breakdown:
-        all_missed_rubric.extend(q.get("missed_rubric_points", []))
+    # 2. Deterministic Areas to Improve
+    if weak_qs or partial_qs:
+        needs_review_count = len(weak_qs) + len(partial_qs)
+        weaknesses.append(f"Technical Accuracy: {needs_review_count} of {total_q} responses need review.")
+        all_improve = weak_qs + partial_qs
+        weaknesses.append(f"Focus on the concepts covered by: {', '.join(all_improve)}.")
 
-    if overall_technical >= 80.0:
-        strengths.append(
-            f"High overall technical accuracy ({overall_technical:.1f}%), consistently addressing key concepts in reference answers."
-        )
-    elif overall_technical >= 60.0:
-        strengths.append(
-            f"Solid technical foundation ({overall_technical:.1f}%), answering core requirements for most technical questions."
-        )
+    if overall_communication >= 70.0 and overall_technical < 70.0:
+        weaknesses.append("Your communication delivery is already strong. Your primary improvement area is technical accuracy.")
+    elif overall_communication < 70.0 and overall_technical >= 70.0:
+        weaknesses.append("Your technical understanding is strong. Focus on improving speech clarity and delivery.")
+    elif overall_communication < 70.0 and overall_technical < 70.0:
+        weaknesses.append("Both technical accuracy and communication delivery require improvement.")
 
-    if all_missed_rubric:
-        sample_missed = all_missed_rubric[0]
-        if len(sample_missed) > 80:
-            sample_missed = sample_missed[:77] + "..."
-        weaknesses.append(
-            f"Missed specific key rubric points during explanations (e.g. '{sample_missed}')."
-        )
+    # 3. Recommended Next Steps
+    if overall_technical < 70.0:
+        next_steps.append("Review the concepts behind your lowest-scoring questions and retry this topic.")
     else:
-        weaknesses.append(
-            "Could expand responses with more detailed implementation examples and technical depth."
-        )
+        next_steps.append("Continue to another topic to broaden your preparation.")
 
-    # 3. Speech and Communication analysis
-    total_fillers = 0
-    total_words = 0
-    speaking_rates = []
-
-    for q in per_question_breakdown:
-        feats = q.get("features") or {}
-        if isinstance(feats, dict):
-            total_fillers += feats.get("fillers", 0) or 0
-            sr = feats.get("speaking_rate")
-            if sr and sr > 0:
-                speaking_rates.append(sr)
-
-    avg_wpm = (sum(speaking_rates) / len(speaking_rates)) if speaking_rates else 0.0
-
-    if overall_communication >= 75.0:
-        strengths.append(
-            f"Clear and structured verbal presentation style with a strong communication score ({overall_communication:.1f}%)."
-        )
-    elif total_fillers <= 5:
-        strengths.append(
-            "Maintained concise and articulate delivery with minimal use of filler words."
-        )
+    if overall_communication >= 70.0:
+        next_steps.append("Maintain your current speech delivery while focusing on technical depth.")
     else:
-        strengths.append(
-            "Paced answers thoughtfully and maintained consistent dialogue engagement."
-        )
+        next_steps.append("Practice concise, structured verbal explanations.")
 
-    if total_fillers > 5:
-        weaknesses.append(
-            f"Frequent use of filler words detected ({total_fillers} total instances across responses); aim for steady pauses instead."
-        )
-    elif avg_wpm > 0 and (avg_wpm < 110 or avg_wpm > 170):
-        weaknesses.append(
-            f"Pacing was slightly non-optimal (avg {avg_wpm:.0f} WPM); target a natural speaking rate of 120-150 words per minute."
-        )
-    elif overall_communication < 70.0:
-        weaknesses.append(
-            f"Communication score ({overall_communication:.1f}%) indicates scope for clearer explanation structure and delivery."
-        )
-
-    # Ensure 2-3 items for strengths and weaknesses
-    if len(strengths) < 2:
-        strengths.append("Completed all assigned technical interview questions attentively.")
-    if len(weaknesses) < 2:
-        weaknesses.append("Practice concise summary sentences at the conclusion of complex answers.")
+    if weak_qs:
+        next_steps.append(f"Prioritize the concepts represented by {', '.join(weak_qs)}.")
 
     return {
-        "strengths": strengths[:3],
-        "weaknesses": weaknesses[:3],
+        "strong_count": len(strong_qs),
+        "partial_count": len(partial_qs),
+        "needs_review_count": len(weak_qs),
+        "strong_qs": strong_qs,
+        "weak_qs": weak_qs,
+        "strengths": strengths,
+        "weaknesses": weaknesses,
+        "next_steps": next_steps,
     }
 
 
@@ -179,7 +143,6 @@ async def generate_session_report(session_id: str, force_recompute: bool = False
         transcript = ans.get("transcript", "")
         response_time = ans.get("response_time_seconds", 0.0)
 
-        # Query score_results
         score_doc = await db["score_results"].find_one({"answer_id": answer_id})
         if not score_doc:
             score_doc = {}
@@ -190,14 +153,11 @@ async def generate_session_report(session_id: str, force_recompute: bool = False
         features = score_doc.get("features") or {}
         corr_breakdown = score_doc.get("correctness_breakdown") or {}
 
-        # Query questions
         q_doc = await db["questions"].find_one({"question_id": question_id}) or {}
         topic = q_doc.get("topic", "General Computer Science")
         q_text = q_doc.get("question", f"Question {question_id}")
         difficulty = q_doc.get("difficulty", "Medium")
-        irt_diff = q_doc.get("irt_difficulty", 0.0)
 
-        # Extract missed rubric points
         missed_rubric_points: List[str] = []
         rubric_details = corr_breakdown.get("rubric_details") or []
         for rd in rubric_details:
@@ -211,12 +171,19 @@ async def generate_session_report(session_id: str, force_recompute: bool = False
         if beh_score is not None:
             behavior_scores.append(float(beh_score))
 
+        corr_val = float(corr_score) if corr_score is not None else 0.0
+        if corr_val >= 70.0:
+            q_status = "Strong"
+        elif corr_val >= 40.0:
+            q_status = "Partial"
+        else:
+            q_status = "Needs Review"
+
         q_item = {
             "question_id": question_id,
             "question_text": q_text,
             "topic": topic,
             "difficulty": difficulty,
-            "irt_difficulty": float(irt_diff),
             "transcript": transcript,
             "response_time_seconds": round(float(response_time), 2),
             "correctness_score": round(float(corr_score), 1) if corr_score is not None else None,
@@ -224,10 +191,10 @@ async def generate_session_report(session_id: str, force_recompute: bool = False
             "behavior_explanation": beh_exp,
             "features": features,
             "missed_rubric_points": missed_rubric_points,
+            "status": q_status,
         }
         per_question_breakdown.append(q_item)
 
-        # Accumulate topic data
         if topic not in topic_data:
             topic_data[topic] = {
                 "topic": topic,
@@ -246,7 +213,6 @@ async def generate_session_report(session_id: str, force_recompute: bool = False
             topic_data[topic]["behavior_sum"] += float(beh_score)
             topic_data[topic]["behavior_count"] += 1
 
-    # Step 5: Compute summary scores
     overall_technical = (
         round(sum(correctness_scores) / len(correctness_scores), 1)
         if correctness_scores
@@ -259,11 +225,9 @@ async def generate_session_report(session_id: str, force_recompute: bool = False
     )
     overall_combined = round(0.7 * overall_technical + 0.3 * overall_communication, 1)
 
-    final_theta = round(float(session_doc.get("theta", 0.0)), 4)
-    standard_error = round(float(session_doc.get("standard_error", 1.0)), 4)
+    session_topic = session_doc.get("topic")
     status = session_doc.get("status", "complete")
 
-    # Step 6: Build topic breakdown
     topic_breakdown: List[Dict[str, Any]] = []
     for top_name, td in topic_data.items():
         avg_corr = (
@@ -286,7 +250,6 @@ async def generate_session_report(session_id: str, force_recompute: bool = False
             "avg_combined_score": avg_comb,
         })
 
-    # Step 7: Shape chart-ready data
     chart_data = {
         "topics": [t["topic"] for t in topic_breakdown],
         "technical_scores": [t["avg_correctness_score"] for t in topic_breakdown],
@@ -303,33 +266,32 @@ async def generate_session_report(session_id: str, force_recompute: bool = False
         ],
     }
 
-    # Step 8: Auto-generate strengths and weaknesses
     sw_results = _generate_strengths_and_weaknesses(
-        topic_breakdown=topic_breakdown,
         per_question_breakdown=per_question_breakdown,
         overall_technical=overall_technical,
         overall_communication=overall_communication,
     )
 
-    # Step 9: Assemble final report document
     report_dict = {
         "session_id": session_id,
+        "topic": session_topic,
         "status": status,
         "overall_technical_score": overall_technical,
         "overall_communication_score": overall_communication,
         "overall_score": overall_combined,
-        "final_theta": final_theta,
-        "standard_error": standard_error,
         "total_questions_answered": len(per_question_breakdown),
+        "strong_count": sw_results["strong_count"],
+        "partial_count": sw_results["partial_count"],
+        "needs_review_count": sw_results["needs_review_count"],
         "per_question_breakdown": per_question_breakdown,
         "topic_breakdown": topic_breakdown,
         "chart_data": chart_data,
         "strengths": sw_results["strengths"],
         "weaknesses": sw_results["weaknesses"],
+        "next_steps": sw_results["next_steps"],
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
 
-    # Step 10: Cache in MongoDB reports collection
     await db["reports"].update_one(
         {"session_id": session_id},
         {

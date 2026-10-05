@@ -10,7 +10,6 @@ class QuestionReportItem(BaseModel):
     question_text: str
     topic: str
     difficulty: str
-    irt_difficulty: float
     transcript: Optional[str] = ""
     response_time_seconds: Optional[float] = 0.0
     correctness_score: Optional[float] = None
@@ -37,8 +36,6 @@ class SessionReport(BaseModel):
     overall_technical_score: float = 0.0
     overall_communication_score: float = 0.0
     overall_score: float = 0.0
-    final_theta: float = 0.0
-    standard_error: float = 1.0
     total_questions_answered: int = 0
     per_question_breakdown: List[QuestionReportItem] = Field(default_factory=list)
     topic_breakdown: List[TopicReportItem] = Field(default_factory=list)

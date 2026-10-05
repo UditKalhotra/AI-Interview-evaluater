@@ -33,10 +33,68 @@ class STTError(Exception):
     pass
 
 
+_WHISPER_MODEL = None
+
+
+def _get_local_whisper_model():
+    """Lazily load and cache local Whisper model for offline fallback."""
+    global _WHISPER_MODEL
+    if _WHISPER_MODEL is None:
+        import shutil
+        import whisper
+        try:
+            import imageio_ffmpeg
+            ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+            ffmpeg_dir = os.path.dirname(ffmpeg_exe)
+            target_ffmpeg = os.path.join(ffmpeg_dir, "ffmpeg.exe")
+            if not os.path.exists(target_ffmpeg) and os.path.exists(ffmpeg_exe):
+                try:
+                    shutil.copy(ffmpeg_exe, target_ffmpeg)
+                except Exception:
+                    pass
+            if ffmpeg_dir not in os.environ.get("PATH", ""):
+                os.environ["PATH"] = ffmpeg_dir + os.pathsep + os.environ.get("PATH", "")
+        except Exception as e:
+            logger.warning(f"Could not configure imageio_ffmpeg for local whisper: {e}")
+
+        logger.info("Loading local Whisper model (tiny.en)...")
+        _WHISPER_MODEL = whisper.load_model("tiny.en")
+    return _WHISPER_MODEL
+
+
+async def _transcribe_local_whisper(file_path: str) -> Dict[str, Any]:
+    """Transcribe audio files (.webm, .wav, .mp3, etc.) using local Whisper model."""
+    model = _get_local_whisper_model()
+    result = model.transcribe(file_path)
+    transcript = (result.get("text") or "").strip()
+
+    words = []
+    segments = result.get("segments", [])
+    for seg in segments:
+        seg_words = seg.get("words", [])
+        for w in seg_words:
+            words.append({
+                "word": w.get("word", "").strip(),
+                "start": round(float(w.get("start", 0.0)), 2),
+                "end": round(float(w.get("end", 0.0)), 2),
+            })
+
+    if not words and transcript:
+        words = _estimate_word_timestamps(transcript)
+
+    return {"transcript": transcript, "words": words}
+
+
 async def transcribe_audio(file_path: str) -> Dict[str, Any]:
     """
     Transcribe the given candidate audio file using real available STT providers.
-    Raises STTError if no provider is configured or transcription fails.
+    Provider Order:
+    1. Deepgram API (if DEEPGRAM_API_KEY is configured)
+    2. OpenAI Whisper API (if OPENAI_API_KEY or STT_API_KEY is configured)
+    3. Local Whisper engine (offline fallback for .webm, .wav, .mp3)
+    4. Local SpeechRecognition engine (offline fallback for .wav files)
+
+    Raises STTError if all providers fail.
     """
     if not os.path.exists(file_path):
         raise STTError(f"Audio file not found: {file_path}")
@@ -61,15 +119,14 @@ async def transcribe_audio(file_path: str) -> Dict[str, Any]:
         except Exception as e:
             logger.warning(f"OpenAI Whisper STT failed: {e}. Attempting fallback STT providers...")
 
-    # Provider 3: Gemini Multimodal Audio Transcription API
-    if GEMINI_API_KEY:
-        try:
-            logger.info(f"Transcribing audio {file_path} via Gemini Multimodal STT API...")
-            result = await _transcribe_gemini(file_path)
-            logger.info(f"[STT Provider Used: Gemini Multimodal API] Transcript length: {len(result.get('transcript', ''))} chars")
-            return result
-        except Exception as e:
-            logger.warning(f"Gemini Multimodal STT failed: {e}. Attempting fallback STT providers...")
+    # Provider 3: Local Whisper engine (supports .webm, .wav, .mp3, etc.)
+    try:
+        logger.info(f"Transcribing audio {file_path} via local Whisper engine...")
+        result = await _transcribe_local_whisper(file_path)
+        logger.info(f"[STT Provider Used: Local Whisper Engine] Transcript length: {len(result.get('transcript', ''))} chars")
+        return result
+    except Exception as e:
+        logger.warning(f"Local Whisper STT failed: {e}. Attempting local SpeechRecognition fallback...", exc_info=True)
 
     # Provider 4: Local SpeechRecognition engine (if .wav file format)
     ext = os.path.splitext(file_path)[1].lower()
@@ -80,12 +137,11 @@ async def transcribe_audio(file_path: str) -> Dict[str, Any]:
             logger.info(f"[STT Provider Used: Local SpeechRecognition] Transcript length: {len(result.get('transcript', ''))} chars")
             return result
         except Exception as e:
-            logger.warning(f"Local SpeechRecognition failed: {e}")
+            logger.warning(f"Local SpeechRecognition failed: {e}", exc_info=True)
 
-    # If all options failed and no working STT key is configured:
+    # If all options failed:
     error_msg = (
-        "Speech-to-Text transcription failed: No valid STT API key configured or reachable. "
-        "Please provide GEMINI_API_KEY, OPENAI_API_KEY, or DEEPGRAM_API_KEY in backend/.env."
+        "Speech-to-Text transcription failed across all providers (Deepgram, OpenAI, Local Whisper)."
     )
     logger.error(error_msg)
     raise STTError(error_msg)
@@ -222,8 +278,13 @@ async def _transcribe_gemini(file_path: str) -> Dict[str, Any]:
                                 "transcript": transcript,
                                 "words": _estimate_word_timestamps(transcript),
                             }
+                elif res.status_code == 429 or "429" in res.text:
+                    logger.warning(f"Gemini API returned status 429 (quota/rate limit) for model {model}. Stopping model iterations to failover immediately.")
+                    raise STTError("Gemini API quota exhausted (HTTP status 429)")
                 else:
                     last_err = f"Model {model} status {res.status_code}: {res.text[:120]}"
+            except STTError:
+                raise
             except Exception as exc:
                 last_err = str(exc)
 

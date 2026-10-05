@@ -32,6 +32,26 @@ async def list_questions(topic: Optional[str] = Query(default=None)):
     return [_serialize(doc) async for doc in cursor]
 
 
+@router.get("/topics")
+async def list_topics():
+    """List distinct active topics with active question counts."""
+    db = get_database()
+    pipeline = [
+        {"$match": {"active": True}},
+        {"$group": {"_id": "$topic", "question_count": {"$sum": 1}}},
+        {"$sort": {"_id": 1}},
+    ]
+    cursor = db["questions"].aggregate(pipeline)
+    topics = []
+    async for doc in cursor:
+        if doc.get("_id"):
+            topics.append({
+                "topic": doc["_id"],
+                "question_count": doc["question_count"],
+            })
+    return topics
+
+
 @router.get("/{question_id}")
 async def get_question(question_id: str):
     """Fetch a single question by its question_id."""

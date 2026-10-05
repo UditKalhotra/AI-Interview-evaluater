@@ -21,5 +21,4 @@ class Question(BaseModel):
     reference_answer: str
     rubric: Union[str, List[str]]
     difficulty: str  # Easy / Medium / Hard
-    irt_difficulty: float
     active: bool

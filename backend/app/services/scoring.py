@@ -91,17 +91,29 @@ def compute_lsa_similarity(text1: str, text2: str) -> float:
         return 0.0
 
 
-def evaluate_rubric(transcript: str, rubric: List[str], threshold: float = 0.50) -> Dict[str, Any]:
+def _extract_domain_keywords(text: str) -> set:
+    """Extract meaningful non-stopword tokens of length >= 3 from text."""
+    clean = _clean_text(text).lower()
+    words = re.findall(r"\b[a-z0-9]+\b", clean)
+    return {w for w in words if len(w) >= 3 and w not in ENGLISH_STOP_WORDS}
+
+
+def evaluate_rubric(
+    transcript: str,
+    rubric: List[str],
+    threshold: float = 0.50,
+    domain_keywords: Optional[set] = None,
+) -> Dict[str, Any]:
     """
     Check semantic presence of each rubric point in transcript.
-    Uses strict keyword token overlap and calibrated LSA similarity thresholds
+    Uses keyword token overlap and calibrated LSA similarity thresholds
     to eliminate false-positive rubric matches.
     """
     if not rubric:
         return {
             "matched_count": 0,
             "total_count": 0,
-            "score": 100.0,
+            "score": 0.0,
             "details": [],
         }
 
@@ -125,11 +137,11 @@ def evaluate_rubric(transcript: str, rubric: List[str], threshold: float = 0.50)
 
         # Calibrated matching criteria to prevent false positives:
         # 1. High LSA similarity (>= 0.55) AND at least 1 keyword match (if keywords exist)
-        # 2. OR very high LSA similarity (>= 0.65)
+        # 2. OR extremely high LSA similarity (>= 0.75) AND domain keywords overlap with context
         # 3. OR strong keyword overlap ratio (>= 0.50)
         is_matched = (
             (sim >= 0.55 and (overlap > 0 or not keywords))
-            or (sim >= 0.65)
+            or (sim >= 0.75 and len(transcript_words.intersection(domain_keywords or set())) > 0)
             or (overlap_ratio >= 0.50)
         )
 
@@ -153,21 +165,45 @@ def evaluate_rubric(transcript: str, rubric: List[str], threshold: float = 0.50)
     }
 
 
-def score_correctness(transcript: str, reference_answer: str, rubric: Optional[List[str]] = None) -> Dict[str, Any]:
+def score_correctness(
+    transcript: str,
+    reference_answer: str,
+    rubric: Optional[List[str]] = None,
+    question_text: str = "",
+) -> Dict[str, Any]:
     """
     Compute combined correctness score (0-100) from LSA similarity and rubric coverage.
+    Applies a Domain Relevance Gate to ensure ungrounded/irrelevant inputs receive 0%.
     """
     rubric = rubric or []
 
-    # 1. Raw LSA similarity with reference answer
-    lsa_sim = compute_lsa_similarity(transcript, reference_answer)
-    lsa_score_100 = round(lsa_sim * 100.0, 1)
+    # 1. Target Domain Vocabulary & Grounding Gate
+    target_context = f"{reference_answer} {question_text} " + " ".join(rubric)
+    target_keywords = _extract_domain_keywords(target_context)
+    transcript_keywords = _extract_domain_keywords(transcript)
 
-    # 2. Rubric coverage evaluation
-    rubric_eval = evaluate_rubric(transcript, rubric)
-    rubric_score_100 = rubric_eval["score"]
+    has_domain_grounding = len(transcript_keywords.intersection(target_keywords)) > 0
 
-    # 3. Combined score (50% LSA similarity + 50% Rubric coverage)
+    # 2. LSA similarity with reference answer
+    raw_lsa_sim = compute_lsa_similarity(transcript, reference_answer)
+    # If transcript has ZERO keyword overlap with overall question context, gate LSA sim to 0.0
+    effective_lsa_sim = raw_lsa_sim if (has_domain_grounding or not target_keywords) else 0.0
+    lsa_score_100 = round(effective_lsa_sim * 100.0, 1)
+
+    # 3. Rubric coverage evaluation
+    if has_domain_grounding:
+        rubric_eval = evaluate_rubric(transcript, rubric, domain_keywords=target_keywords)
+        rubric_score_100 = rubric_eval["score"]
+    else:
+        rubric_eval = {
+            "matched_count": 0,
+            "total_count": len(rubric),
+            "score": 0.0,
+            "details": [],
+        }
+        rubric_score_100 = 0.0
+
+    # 4. Combined score (50% LSA similarity + 50% Rubric coverage if rubric present)
     if rubric:
         combined_score = round(0.5 * lsa_score_100 + 0.5 * rubric_score_100, 1)
     else:
@@ -209,14 +245,15 @@ async def score_answer_correctness(answer_id: str) -> Dict[str, Any]:
     if not question_doc:
         raise HTTPException(status_code=404, detail=f"Question with question_id {question_id!r} not found")
 
+    question_text = question_doc.get("question", "")
     reference_answer = question_doc.get("reference_answer", "")
     rubric = question_doc.get("rubric", [])
 
     if isinstance(rubric, str):
         rubric = [r.strip() for r in rubric.split("\n") if r.strip()]
 
-    # Score correctness using real LSA model
-    scoring_result = score_correctness(transcript, reference_answer, rubric)
+    # Score correctness using real LSA model and domain relevance gate
+    scoring_result = score_correctness(transcript, reference_answer, rubric, question_text)
 
     correctness_score = scoring_result["correctness_score"]
 

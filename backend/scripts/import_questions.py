@@ -36,7 +36,6 @@ REQUIRED_COLUMNS = {
     "reference_answer",
     "rubric",
     "difficulty",
-    "irt_difficulty",
     "active",
 }
 
@@ -112,7 +111,6 @@ def build_documents(rows: list[dict]) -> tuple[list[dict], int]:
                 "reference_answer": row["reference_answer"].strip(),
                 "rubric": parse_rubric(row["rubric"]),
                 "difficulty": row["difficulty"].strip(),
-                "irt_difficulty": parse_float(row["irt_difficulty"], "irt_difficulty", question_id),
                 "active": True,
             }
         )

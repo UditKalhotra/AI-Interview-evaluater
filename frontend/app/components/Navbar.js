@@ -33,7 +33,7 @@ export default function Navbar() {
         <Link href="/" style={styles.brand}>
           <div style={styles.logoIcon}>TE</div>
           <div style={styles.brandText}>
-            <span style={styles.brandTitle}>TalentEval AI</span>
+            <span style={styles.brandTitle}>TalentEval</span>
             <span style={styles.brandSubtitle}>Technical Assessment Platform</span>
           </div>
         </Link>
@@ -48,7 +48,7 @@ export default function Navbar() {
                 ...(pathname === "/" ? styles.activeLink : {})
               }}
             >
-              Overview
+              Home
             </Link>
             <Link 
               href="/#how-it-works" 
@@ -59,6 +59,21 @@ export default function Navbar() {
             >
               How It Works
             </Link>
+            <Link 
+              href="/#topic-selection" 
+              style={{
+                ...styles.link,
+                ...(pathname === "/#topic-selection" ? styles.activeLink : {})
+              }}
+            >
+              Topics
+            </Link>
+            <Link 
+              href="/#how-it-works" 
+              style={styles.link}
+            >
+              About
+            </Link>
           </div>
 
           {/* System Health Badge */}
@@ -68,10 +83,10 @@ export default function Navbar() {
                 ...styles.statusDot,
                 background:
                   status === "connected"
-                    ? "#10b981"
+                    ? "#3D9468"
                     : status === "checking"
-                    ? "#f59e0b"
-                    : "#ef4444",
+                    ? "#C58A27"
+                    : "#D35D5D",
               }}
             />
             <span style={styles.statusText}>
@@ -80,6 +95,10 @@ export default function Navbar() {
               {status === "error" && "Offline"}
             </span>
           </div>
+
+          <Link href="/#topic-selection" style={styles.btnGetStarted}>
+            Get Started
+          </Link>
         </div>
       </div>
     </nav>
@@ -88,15 +107,15 @@ export default function Navbar() {
 
 const styles = {
   nav: {
-    background: "#0f1724",
-    borderBottom: "1px solid #233044",
+    background: "#FFFFFF",
+    borderBottom: "1px solid #E2E7EF",
     position: "sticky",
     top: 0,
     zIndex: 50,
-    backdropFilter: "blur(12px)",
+    boxShadow: "0 2px 10px rgba(15, 39, 66, 0.03)",
   },
   container: {
-    maxWidth: "1200px",
+    maxWidth: "1240px",
     margin: "0 auto",
     padding: "0.85rem 1.5rem",
     display: "flex",
@@ -110,70 +129,82 @@ const styles = {
     textDecoration: "none",
   },
   logoIcon: {
-    width: "38px",
-    height: "38px",
+    width: "36px",
+    height: "36px",
     borderRadius: "8px",
-    background: "linear-gradient(135deg, #2563eb 0%, #4f46e5 100%)",
+    background: "#2F66C5",
     color: "#ffffff",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     fontWeight: "800",
-    fontSize: "1rem",
-    letterSpacing: "-0.03em",
+    fontSize: "0.95rem",
+    letterSpacing: "-0.02em",
   },
   brandText: {
     display: "flex",
     flexDirection: "column",
   },
   brandTitle: {
-    fontSize: "1.1rem",
-    fontWeight: "700",
-    color: "#f8fafc",
+    fontSize: "1.05rem",
+    fontWeight: "800",
+    color: "#102A43",
     lineHeight: "1.2",
   },
   brandSubtitle: {
     fontSize: "0.75rem",
-    color: "#64748b",
+    color: "#5E7187",
     fontWeight: "500",
   },
   rightSection: {
     display: "flex",
     alignItems: "center",
-    gap: "1.5rem",
+    gap: "1.25rem",
   },
   navLinks: {
     display: "flex",
     alignItems: "center",
-    gap: "1.25rem",
+    gap: "1.5rem",
   },
   link: {
-    color: "#94a3b8",
+    color: "#5E7187",
     fontSize: "0.9rem",
     fontWeight: "500",
     transition: "color 0.2s ease",
   },
   activeLink: {
-    color: "#f8fafc",
-    fontWeight: "600",
+    color: "#102A43",
+    fontWeight: "700",
+    borderBottom: "2px solid #2F66C5",
+    paddingBottom: "0.2rem",
   },
   statusBadge: {
     display: "flex",
     alignItems: "center",
-    gap: "0.5rem",
+    gap: "0.45rem",
     padding: "0.35rem 0.75rem",
     borderRadius: "9999px",
-    background: "#151d2a",
-    border: "1px solid #233044",
+    background: "#EAF7F0",
+    border: "1px solid #C6EAD6",
   },
   statusDot: {
-    width: "8px",
-    height: "8px",
+    width: "7px",
+    height: "7px",
     borderRadius: "50%",
   },
   statusText: {
     fontSize: "0.8rem",
     fontWeight: "600",
-    color: "#cbd5e1",
+    color: "#3D9468",
+  },
+  btnGetStarted: {
+    padding: "0.5rem 1.25rem",
+    borderRadius: "8px",
+    background: "#2F66C5",
+    color: "#ffffff",
+    fontSize: "0.875rem",
+    fontWeight: "600",
+    textDecoration: "none",
+    boxShadow: "0 2px 8px rgba(47, 102, 197, 0.25)",
   },
 };

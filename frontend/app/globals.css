@@ -1,34 +1,51 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
 :root {
-  --bg-main: #0b0f19;
-  --bg-card: #151d2a;
-  --bg-card-hover: #1c2738;
-  --bg-input: #0f1724;
-  --border-color: #233044;
-  --border-light: #2e3e56;
+  --bg-main: #F8F9FC;
+  --bg-card: #FFFFFF;
+  --bg-surface: #F1F4F9;
+  --border-color: #E2E7EF;
+  --border-light: #EEF2F7;
 
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-navy: #102A43;
+  --text-primary: #0F2742;
+  --text-secondary: #5E7187;
+  --text-muted: #829AB1;
 
-  --primary-blue: #2563eb;
-  --primary-blue-hover: #1d4ed8;
-  --primary-indigo: #4f46e5;
-  
-  --status-emerald-bg: rgba(16, 185, 129, 0.1);
-  --status-emerald-text: #10b981;
-  --status-emerald-border: rgba(16, 185, 129, 0.25);
+  --primary-blue: #2F66C5;
+  --primary-blue-hover: #2352A4;
 
-  --status-amber-bg: rgba(245, 158, 11, 0.1);
-  --status-amber-text: #f59e0b;
-  --status-amber-border: rgba(245, 158, 11, 0.25);
+  --soft-blue-bg: #EAF2FF;
+  --soft-blue-border: #D0E2FF;
+  --soft-blue-icon: #2F66C5;
 
-  --status-rose-bg: rgba(239, 68, 68, 0.1);
-  --status-rose-text: #ef4444;
-  --status-rose-border: rgba(239, 68, 68, 0.25);
+  --soft-pink-bg: #FDEEEF;
+  --soft-pink-border: #FAD2D4;
+  --soft-pink-icon: #D35D5D;
+
+  --soft-green-bg: #EAF7F0;
+  --soft-green-border: #C6EAD6;
+  --soft-green-icon: #3D9468;
+
+  --soft-amber-bg: #FFF7DF;
+  --soft-amber-border: #F5E5B8;
+  --soft-amber-icon: #C58A27;
+
+  --status-strong-bg: #EAF7F0;
+  --status-strong-text: #3D9468;
+  --status-strong-border: #C6EAD6;
+
+  --status-partial-bg: #FFF7DF;
+  --status-partial-text: #C58A27;
+  --status-partial-border: #F5E5B8;
+
+  --status-review-bg: #FDEEEF;
+  --status-review-text: #D35D5D;
+  --status-review-border: #FAD2D4;
 
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --card-shadow: 0 4px 20px rgba(30, 60, 90, 0.05);
+  --card-shadow-hover: 0 8px 30px rgba(30, 60, 90, 0.09);
 }
 
 * {
@@ -44,6 +61,53 @@ body {
   min-height: 100vh;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Background Abstract Soft Pastel Shapes */
+.bg-decorations {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.bg-blob-1 {
+  position: absolute;
+  top: -100px;
+  right: -100px;
+  width: 650px;
+  height: 650px;
+  background: radial-gradient(circle, rgba(200, 220, 255, 0.45) 0%, rgba(235, 242, 255, 0) 70%);
+  border-radius: 50%;
+  filter: blur(50px);
+}
+
+.bg-blob-2 {
+  position: absolute;
+  top: 250px;
+  left: -150px;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(230, 220, 255, 0.35) 0%, rgba(245, 240, 255, 0) 70%);
+  border-radius: 50%;
+  filter: blur(60px);
+}
+
+.bg-blob-3 {
+  position: absolute;
+  bottom: -150px;
+  right: 15%;
+  width: 550px;
+  height: 550px;
+  background: radial-gradient(circle, rgba(255, 225, 230, 0.3) 0%, rgba(255, 240, 245, 0) 70%);
+  border-radius: 50%;
+  filter: blur(50px);
 }
 
 a {
@@ -55,34 +119,34 @@ button {
   font-family: inherit;
 }
 
-/* Scrollbar styling */
+/* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
 }
 ::-webkit-scrollbar-track {
   background: var(--bg-main);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--border-color);
+  background: #CBD5E1;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--border-light);
+  background: var(--text-secondary);
 }
 
-/* Animations */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
-@keyframes pulseGlow {
-  0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4); }
-  70% { box-shadow: 0 0 0 8px rgba(37, 99, 235, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+@keyframes waveform {
+  0%, 100% { height: 8px; }
+  50% { height: 32px; }
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.3s ease-out forwards;
-}
+.animate-wave-1 { animation: waveform 1.2s infinite ease-in-out 0.1s; }
+.animate-wave-2 { animation: waveform 1.2s infinite ease-in-out 0.3s; }
+.animate-wave-3 { animation: waveform 1.2s infinite ease-in-out 0.5s; }
+.animate-wave-4 { animation: waveform 1.2s infinite ease-in-out 0.2s; }
+.animate-wave-5 { animation: waveform 1.2s infinite ease-in-out 0.4s; }
